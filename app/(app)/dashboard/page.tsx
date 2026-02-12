@@ -71,6 +71,7 @@ export default function Dashboard() {
 
       setName("");
       await loadVendors();
+      window.dispatchEvent(new Event("vendors:changed"));
       setMsg({ kind: "success", text: `נוצר ספק חדש: ${vname}` });
     } catch (err: any) {
       setMsg({ kind: "error", text: err?.message ?? "שגיאה לא ידועה" });
@@ -88,6 +89,7 @@ export default function Dashboard() {
     if (error) return setMsg({ kind: "error", text: error.message });
 
     await loadVendors();
+    window.dispatchEvent(new Event("vendors:changed"));
     setMsg({ kind: "info", text: `נמחק: ${vname}` });
   }
 
@@ -104,8 +106,8 @@ export default function Dashboard() {
           <div className="md:col-span-9">
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="שם ספק חדש" />
           </div>
-          <div className="md:col-span-3">
-            <Button disabled={loading} className="w-full">
+          <div className="md:col-span-3" >
+            <Button disabled={loading} className="w-full" >
               {loading ? "..." : "➕ צור ספק"}
             </Button>
           </div>
@@ -120,15 +122,13 @@ export default function Dashboard() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-lg font-black truncate">{v.name}</h3>
-                <p className="text-xs text-slate-600 mt-1">תקציב • חיובים • דוחות</p>
               </div>
-              <div className="text-2xl">📌</div>
             </div>
 
             <div className="mt-4 flex gap-2">
               <a href={`/vendor/${v.id}`} className="flex-1">
-                <Button className="w-full" variant="success">
-                  פתח כרטיסייה
+                <Button className="w-full" variant="primary">
+                  פתח
                 </Button>
               </a>
 

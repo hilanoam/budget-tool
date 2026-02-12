@@ -10,7 +10,9 @@ export function Card({
   return (
     <section
       className={[
-        "rounded-[28px] bg-white/70 glass border border-white/60 shadow-soft p-6 fade-in",
+        // כמו בדוגמה שלך
+        "rounded-[26px] bg-white/60 border border-white/50 backdrop-blur-2xl",
+        "p-6 shadow-[0_22px_50px_rgba(31,41,55,.12)]",
         className,
       ].join(" ")}
     >
@@ -31,8 +33,10 @@ export function CardTitle({
   return (
     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
       <div>
-        <h2 className="text-lg font-extrabold">{title}</h2>
-        {subtitle && <p className="text-sm text-slate-600 mt-1">{subtitle}</p>}
+        <h2 className="text-slate-900 text-base sm:text-lg font-semibold">{title}</h2>
+        {subtitle && (
+          <p className="text-sm text-slate-600 mt-1 leading-relaxed">{subtitle}</p>
+        )}
       </div>
       {right}
     </div>
@@ -41,19 +45,24 @@ export function CardTitle({
 
 export function Button({
   children,
-  variant = "primary",
+  variant = "glass",
   className = "",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "success" | "danger" | "ghost";
+  variant?: "glass" | "primary" | "danger" | "soft";
 }) {
   const base =
-    "rounded-xl px-4 py-3 text-sm font-black transition shadow-soft disabled:opacity-60 disabled:cursor-not-allowed";
+    "px-4 py-2 rounded-2xl border transition text-sm font-semibold shadow-sm disabled:opacity-60 disabled:cursor-not-allowed";
+
   const variants: Record<string, string> = {
-    primary: "text-white bg-indigo-600 hover:bg-indigo-700",
-    success: "text-white bg-emerald-600 hover:bg-emerald-700",
-    danger: "text-rose-700 bg-rose-100 hover:bg-rose-200 shadow-none",
-    ghost: "text-slate-900 border border-white/60 bg-white/70 glass hover:bg-white",
+    // הכפתורים בדוגמה: זכוכית בהירה
+    glass: "border-white/50 bg-white/70 hover:bg-white/90",
+    // כחול/סגול תוצאה/פעולה
+    primary: "border-white/20 bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_10px_30px_rgba(99,102,241,.35)]",
+    // אדום רך
+    danger: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 shadow-none",
+    // רך לבן/שקוף יותר
+    soft: "border-white/40 bg-white/30 hover:bg-white/60",
   };
 
   return (
@@ -70,8 +79,10 @@ export function Input({
   return (
     <input
       className={[
-        "w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-3",
-        "focus:outline-none focus:ring-4 focus:ring-indigo-200",
+        // כמו בדוגמה שלך
+        "w-full rounded-2xl bg-white/60 border border-white/45 backdrop-blur-xl px-4 py-2.5 text-sm",
+        "shadow-[0_12px_28px_rgba(31,41,55,.08)]",
+        "focus:outline-none focus:ring-2 focus:ring-indigo-300",
         className,
       ].join(" ")}
       {...props}
@@ -87,12 +98,19 @@ export function Alert({
   children: React.ReactNode;
 }) {
   const map = {
-    error: "text-rose-700 bg-rose-50 border-rose-200",
-    info: "text-slate-700 bg-slate-50 border-slate-200",
-    success: "text-emerald-800 bg-emerald-50 border-emerald-200",
+    error: "text-rose-700 bg-rose-50/80 border-rose-200",
+    info: "text-slate-700 bg-white/55 border-white/50",
+    success: "text-emerald-800 bg-emerald-50/80 border-emerald-200",
   };
+
   return (
-    <div className={`mt-3 rounded-xl border px-4 py-3 text-sm font-semibold ${map[kind]}`}>
+    <div
+      className={[
+        "mt-3 rounded-2xl border px-4 py-3 text-sm font-semibold backdrop-blur-xl",
+        "shadow-[0_12px_28px_rgba(31,41,55,.08)]",
+        map[kind],
+      ].join(" ")}
+    >
       {children}
     </div>
   );

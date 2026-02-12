@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { supabase } from "../../../src/lib/supabaseClient";
-import AppHeader from "../../../src/lib/components/AppHeader";
-import { Alert, Button, Card, CardTitle, Input } from "../../../src/lib/components/ui";
+import { supabase } from "../../../../src/lib/supabaseClient";
+import { Alert, Button, Card, CardTitle, Input } from "../../../../src/lib/components/ui";
 
 const YEAR = 2026;
 
@@ -32,7 +31,8 @@ function StatPill({ label, value, emoji }: { label: string; value: string; emoji
 export default function VendorPage() {
   const params = useParams();
   const vendorId = params?.vendorId as string;
-    const [loading, setLoading] = useState(true);
+
+  const [loading, setLoading] = useState(true);
   const [vendorName, setVendorName] = useState("");
   const [budget, setBudget] = useState<number>(0);
   const [budgetEdit, setBudgetEdit] = useState<string>("0");
@@ -59,56 +59,55 @@ export default function VendorPage() {
     return data.session;
   }
 
- async function loadAll() {
-  setMsg(null);
-  setLoading(true);
+  async function loadAll() {
+    setMsg(null);
+    setLoading(true);
 
-  const { data: s } = await supabase.auth.getSession();
-  if (!s.session) {
-    window.location.href = "/login";
-    return;
+    const { data: s } = await supabase.auth.getSession();
+    if (!s.session) {
+      window.location.href = "/login";
+      return;
+    }
+
+    try {
+      const [vRes, bRes, chRes] = await Promise.all([
+        supabase.from("vendors").select("name").eq("id", vendorId).single(),
+        supabase
+          .from("vendor_budgets")
+          .select("annual_budget")
+          .eq("vendor_id", vendorId)
+          .eq("year", YEAR)
+          .maybeSingle(),
+        supabase
+          .from("charges")
+          .select("id,charge_date,description,amount,category,notes")
+          .eq("vendor_id", vendorId)
+          .eq("year", YEAR)
+          .order("charge_date", { ascending: false })
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (vRes.error) throw vRes.error;
+      if (bRes.error) throw bRes.error;
+      if (chRes.error) throw chRes.error;
+
+      const bval = Number(bRes.data?.annual_budget ?? 0);
+
+      setVendorName(vRes.data?.name ?? "");
+      setBudget(bval);
+      setBudgetEdit(String(bval));
+      setCharges((chRes.data ?? []) as Charge[]);
+    } catch (e: any) {
+      setMsg({ kind: "error", text: e?.message ?? "שגיאה לא ידועה" });
+    } finally {
+      setLoading(false);
+    }
   }
-
-  try {
-    const [vRes, bRes, chRes] = await Promise.all([
-      supabase.from("vendors").select("name").eq("id", vendorId).single(),
-      supabase
-        .from("vendor_budgets")
-        .select("annual_budget")
-        .eq("vendor_id", vendorId)
-        .eq("year", YEAR)
-        .maybeSingle(),
-      supabase
-        .from("charges")
-        .select("id,charge_date,description,amount,category,notes")
-        .eq("vendor_id", vendorId)
-        .eq("year", YEAR)
-        .order("charge_date", { ascending: false })
-        .order("created_at", { ascending: false }),
-    ]);
-
-    if (vRes.error) throw vRes.error;
-    if (bRes.error) throw bRes.error;
-    if (chRes.error) throw chRes.error;
-
-    const bval = Number(bRes.data?.annual_budget ?? 0);
-
-    // ✅ עדכון state מרוכז (מינימום רינדורים)
-    setVendorName(vRes.data?.name ?? "");
-    setBudget(bval);
-    setBudgetEdit(String(bval));
-    setCharges((chRes.data ?? []) as Charge[]);
-  } catch (e: any) {
-    setMsg({ kind: "error", text: e?.message ?? "שגיאה לא ידועה" });
-  } finally {
-    setLoading(false);
-  }
-}
-
 
   useEffect(() => {
     if (!vendorId) return;
     loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorId]);
 
   async function saveBudget() {
@@ -117,7 +116,9 @@ export default function VendorPage() {
     if (!session) return;
 
     const val = Number(budgetEdit);
-    if (!Number.isFinite(val) || val < 0) return setMsg({ kind: "error", text: "תקציב חייב להיות מספר 0 ומעלה" });
+    if (!Number.isFinite(val) || val < 0) {
+      return setMsg({ kind: "error", text: "תקציב חייב להיות מספר 0 ומעלה" });
+    }
 
     setSavingBudget(true);
     try {
@@ -146,7 +147,9 @@ export default function VendorPage() {
 
     const d = desc.trim();
     const a = Number(amount);
-    if (!d || !Number.isFinite(a) || a <= 0) return setMsg({ kind: "error", text: "מלאי תיאור וסכום תקין" });
+    if (!d || !Number.isFinite(a) || a <= 0) {
+      return setMsg({ kind: "error", text: "מלאי תיאור וסכום תקין" });
+    }
 
     setAdding(true);
     try {
@@ -191,20 +194,15 @@ export default function VendorPage() {
   }
 
   return (
-    <AppHeader
-      title="תקציב "
-      highlight={vendorName || "…"}
-      subtitle={`כרטיסיית ספק • שנה ${YEAR}`}
-    >
-    <div className="flex flex-wrap gap-2 mb-6">
-        <a href="/dashboard">
-        <Button variant="ghost">⬅ חזרה לספקים</Button>
-        </a>
+    <div className="fade-in">
+      {/* כותרת פנימית (ה־TopBar כבר מגיע מה־layout) */}
+      <div className="mb-4">
+        <h2 className="text-xl md:text-2xl font-black">
+          תקציב • <span className="text-indigo-700">{vendorName || "…"}</span>
+        </h2>
+        <p className="text-sm text-slate-600">כרטיסיית ספק • שנה {YEAR}</p>
+      </div>
 
-        <a href="/">
-        <Button variant="ghost">🏠 דף הבית</Button>
-        </a>
-    </div>
       {/* סטטיסטיקות */}
       <div className="grid gap-3 md:grid-cols-3">
         <StatPill label="תקציב" value={budget.toLocaleString()} emoji="🎯" />
@@ -212,40 +210,31 @@ export default function VendorPage() {
         <StatPill label="יתרה" value={remaining.toLocaleString()} emoji="💎" />
       </div>
 
-      {msg && <Alert kind={msg.kind} >{msg.text}</Alert>}
+      {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
 
       {/* תקציב */}
       <Card className="mt-6">
-        <CardTitle
-          title="תקציב שנתי"
-          subtitle="עדכן את התקציב לשנה הנוכחית."
-          right={<div className="text-2xl">🧠</div>}
-        />
+        <CardTitle title="תקציב שנתי" subtitle="עדכן את התקציב לשנה הנוכחית." right={<div className="text-2xl">🧠</div>} />
 
         <div className="mt-5 grid gap-3 sm:grid-cols-12 sm:items-end">
           <div className="sm:col-span-4">
             <label className="text-xs font-bold text-slate-600">תקציב</label>
             <div className="mt-2">
-              <Input
-                type="number"
-                value={budgetEdit}
-                onChange={(e) => setBudgetEdit(e.target.value)}
-                min={0}
-              />
+              <Input type="number" value={budgetEdit} onChange={(e) => setBudgetEdit(e.target.value)} min={0} />
             </div>
           </div>
+
           <div className="sm:col-span-3">
             <Button disabled={savingBudget} onClick={saveBudget} className="w-full">
               {savingBudget ? "..." : "שמירה"}
             </Button>
           </div>
-
         </div>
       </Card>
 
       {/* הוספת חיוב */}
       <Card className="mt-6">
-        <CardTitle title="הוספת חיוב" subtitle="הוסף הוצאה לספק בצורה מהירה." right={<div className="text-2xl">➕</div>} />
+        <CardTitle title="הוספת חיוב" subtitle="הוסף הוצאה לספק ." right={<div className="text-2xl">➕</div>} />
 
         <form onSubmit={addCharge} className="mt-5 grid gap-3 md:grid-cols-12">
           <div className="md:col-span-5">
@@ -262,7 +251,7 @@ export default function VendorPage() {
           </div>
 
           <div className="md:col-span-12">
-            <Button disabled={adding} className="w-full" variant="success">
+            <Button disabled={adding} className="w-full" variant="primary">
               {adding ? "..." : "הוסף חיוב"}
             </Button>
           </div>
@@ -271,7 +260,7 @@ export default function VendorPage() {
 
       {/* טבלה */}
       <Card className="mt-6">
-        <CardTitle title="חיובים" subtitle={`רשימת חיובים לשנת ${YEAR}.`} right={<div className="text-2xl">📋</div>} />
+        <CardTitle title="חיובים" subtitle={`רשימת חיובים`} right={<div className="text-2xl">📋</div>} />
 
         <div className="mt-5 overflow-x-auto">
           <table className="w-full text-sm">
@@ -304,7 +293,7 @@ export default function VendorPage() {
               {charges.length === 0 && (
                 <tr className="border-t border-white/60">
                   <td colSpan={6} className="py-4 text-slate-700">
-                    אין חיובים לשנת {YEAR}.
+                    אין חיובים 
                   </td>
                 </tr>
               )}
@@ -312,6 +301,13 @@ export default function VendorPage() {
           </table>
         </div>
       </Card>
-    </AppHeader>
+
+      {/* אופציונלי: מצב טעינה */}
+      {loading && (
+        <div className="mt-4 text-sm text-slate-600">
+          טוען נתונים…
+        </div>
+      )}
+    </div>
   );
 }
