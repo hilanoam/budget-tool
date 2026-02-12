@@ -154,7 +154,7 @@ export default function Dashboard() {
                 </a>
 
                 <Button type="button" onClick={() => deleteVendor(v.id, v.name)} variant="danger">
-                 gfa מחק
+                  מחק
                 </Button>
               </div>
             </div>
@@ -162,7 +162,7 @@ export default function Dashboard() {
 
         {!loadingList && vendors.length === 0 && (
           <div className="rounded-[28px] bg-white/70 glass border border-white/60 shadow-soft p-6 text-slate-700">
-            אין ספקים עדיין. צרי ספק ראשון למעלה 👆
+            אין ספקים עדיין.צור ספק ראשון למעלה 👆
           </div>
         )}
       </section>
