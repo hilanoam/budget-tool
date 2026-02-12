@@ -154,7 +154,7 @@ export default function Dashboard() {
                 </a>
 
                 <Button type="button" onClick={() => deleteVendor(v.id, v.name)} variant="danger">
-                  מחק
+                 gfa מחק
                 </Button>
               </div>
             </div>

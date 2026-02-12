@@ -2,9 +2,9 @@ import { Heebo } from "next/font/google";
 
 const heebo = Heebo({
   subsets: ["hebrew"],
-  weight: ["300", "400", "500", "700", "900"],
+  weight:  ["300", "400", "500", "700", "900"],
   variable: "--font-heebo",
-});
+}) ;
 
 export const metadata = {
   title: "Budget Tool",
