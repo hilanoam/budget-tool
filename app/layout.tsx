@@ -1,4 +1,3 @@
-import "./globals.css";
 import { Heebo } from "next/font/google";
 
 const heebo = Heebo({
