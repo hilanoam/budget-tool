@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "../../src/lib/supabaseClient";
-import AppHeader from "../../src/lib/components/AppHeader";
-import { Alert, Button, Card, CardTitle, Input } from "../../src/lib/components/ui";
+import { supabase } from "../../../src/lib/supabaseClient";
+import { Alert, Button, Card, CardTitle, Input } from "../../../src/lib/components/ui";
 
 const YEAR = 2026;
 type Vendor = { id: string; name: string };
@@ -93,11 +92,7 @@ export default function Dashboard() {
   }
 
   return (
-    <AppHeader
-      title="תקציב"
-      highlight="שנתי"
-      subtitle={`דשבורד ספקים`}
-    >
+    <div className="fade-in">
       <Card>
         <CardTitle
           title="ספקים"
@@ -107,11 +102,7 @@ export default function Dashboard() {
 
         <form onSubmit={addVendor} className="mt-6 grid gap-3 md:grid-cols-12">
           <div className="md:col-span-9">
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="שם ספק חדש"
-            />
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="שם ספק חדש" />
           </div>
           <div className="md:col-span-3">
             <Button disabled={loading} className="w-full">
@@ -123,7 +114,7 @@ export default function Dashboard() {
         {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
       </Card>
 
-      <section className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3 fade-in">
+      <section className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {vendors.map((v) => (
           <div key={v.id} className="rounded-[28px] bg-white/70 glass border border-white/60 shadow-lift p-5">
             <div className="flex items-start justify-between gap-3">
@@ -141,11 +132,7 @@ export default function Dashboard() {
                 </Button>
               </a>
 
-              <Button
-                type="button"
-                onClick={() => deleteVendor(v.id, v.name)}
-                variant="danger"
-              >
+              <Button type="button" onClick={() => deleteVendor(v.id, v.name)} variant="danger">
                 מחק
               </Button>
             </div>
@@ -158,6 +145,6 @@ export default function Dashboard() {
           </div>
         )}
       </section>
-    </AppHeader>
+    </div>
   );
 }
