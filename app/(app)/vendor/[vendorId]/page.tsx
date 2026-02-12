@@ -7,12 +7,19 @@ import { Alert, Button, Card, CardTitle, Input } from "../../../../src/lib/compo
 
 const YEAR = 2026;
 
+const BUDGET_TYPES = [
+  { key: "residential", label: "דירות" },
+  { key: "commercial", label: "מסחר" },
+  { key: "public", label: "ציבורי" },
+] as const;
+
+type BudgetType = (typeof BUDGET_TYPES)[number]["key"];
+
 type Charge = {
   id: string;
-  charge_date: string;
-  description: string;
+  charge_date: string; // yyyy-mm-dd
   amount: number;
-  category: string | null;
+  invoice_number: string | null;
   notes: string | null;
 };
 
@@ -32,25 +39,36 @@ export default function VendorPage() {
   const params = useParams();
   const vendorId = params?.vendorId as string;
 
+  const [budgetType, setBudgetType] = useState<BudgetType>("residential");
+
   const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState<{ kind: "error" | "success" | "info"; text: string } | null>(null);
+
+  // Vendor info
   const [vendorName, setVendorName] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [savingVendorInfo, setSavingVendorInfo] = useState(false);
+
+  // Budget for selected type
   const [budget, setBudget] = useState<number>(0);
   const [budgetEdit, setBudgetEdit] = useState<string>("0");
-
-  const [charges, setCharges] = useState<Charge[]>([]);
-  const [desc, setDesc] = useState("");
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("");
-  const [notes, setNotes] = useState("");
-
-  const [msg, setMsg] = useState<{ kind: "error" | "success" | "info"; text: string } | null>(null);
   const [savingBudget, setSavingBudget] = useState(false);
+
+  // Charges for selected type
+  const [charges, setCharges] = useState<Charge[]>([]);
   const [adding, setAdding] = useState(false);
+
+  // Add charge form (only required fields)
+  const [chargeDate, setChargeDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [amount, setAmount] = useState<string>("");
+  const [invoiceNumber, setInvoiceNumber] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
 
   const totalSpent = useMemo(() => charges.reduce((s, c) => s + Number(c.amount || 0), 0), [charges]);
   const remaining = budget - totalSpent;
 
-  async function getSession() {
+  async function requireSession() {
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
       window.location.href = "/login";
@@ -63,26 +81,31 @@ export default function VendorPage() {
     setMsg(null);
     setLoading(true);
 
-    const { data: s } = await supabase.auth.getSession();
-    if (!s.session) {
-      window.location.href = "/login";
-      return;
-    }
+    const session = await requireSession();
+    if (!session) return;
 
     try {
       const [vRes, bRes, chRes] = await Promise.all([
-        supabase.from("vendors").select("name").eq("id", vendorId).single(),
+        supabase
+          .from("vendors")
+          .select("name,contact_name,contact_email")
+          .eq("id", vendorId)
+          .single(),
+
         supabase
           .from("vendor_budgets")
           .select("annual_budget")
           .eq("vendor_id", vendorId)
           .eq("year", YEAR)
+          .eq("budget_type", budgetType)
           .maybeSingle(),
+
         supabase
           .from("charges")
-          .select("id,charge_date,description,amount,category,notes")
+          .select("id,charge_date,amount,invoice_number,notes")
           .eq("vendor_id", vendorId)
           .eq("year", YEAR)
+          .eq("budget_type", budgetType)
           .order("charge_date", { ascending: false })
           .order("created_at", { ascending: false }),
       ]);
@@ -91,11 +114,14 @@ export default function VendorPage() {
       if (bRes.error) throw bRes.error;
       if (chRes.error) throw chRes.error;
 
-      const bval = Number(bRes.data?.annual_budget ?? 0);
-
       setVendorName(vRes.data?.name ?? "");
+      setContactName(vRes.data?.contact_name ?? "");
+      setContactEmail(vRes.data?.contact_email ?? "");
+
+      const bval = Number(bRes.data?.annual_budget ?? 0);
       setBudget(bval);
       setBudgetEdit(String(bval));
+
       setCharges((chRes.data ?? []) as Charge[]);
     } catch (e: any) {
       setMsg({ kind: "error", text: e?.message ?? "שגיאה לא ידועה" });
@@ -108,11 +134,39 @@ export default function VendorPage() {
     if (!vendorId) return;
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vendorId]);
+  }, [vendorId, budgetType]);
+
+  async function saveVendorInfo() {
+    setMsg(null);
+    const session = await requireSession();
+    if (!session) return;
+
+    setSavingVendorInfo(true);
+    try {
+      const { error } = await supabase
+        .from("vendors")
+        .update({
+          contact_name: contactName.trim() || null,
+          contact_email: contactEmail.trim() || null,
+        })
+        .eq("id", vendorId)
+        .eq("owner_id", session.user.id);
+
+      if (error) throw error;
+
+      setMsg({ kind: "success", text: "פרטי קשר נשמרו ✅" });
+      // אין חובה אבל נחמד לרענן
+      await loadAll();
+    } catch (e: any) {
+      setMsg({ kind: "error", text: e?.message ?? "שגיאה לא ידועה" });
+    } finally {
+      setSavingVendorInfo(false);
+    }
+  }
 
   async function saveBudget() {
     setMsg(null);
-    const session = await getSession();
+    const session = await requireSession();
     if (!session) return;
 
     const val = Number(budgetEdit);
@@ -125,11 +179,18 @@ export default function VendorPage() {
       const { error } = await supabase
         .from("vendor_budgets")
         .upsert(
-          { owner_id: session.user.id, vendor_id: vendorId, year: YEAR, annual_budget: val },
-          { onConflict: "vendor_id,year" }
+          {
+            owner_id: session.user.id,
+            vendor_id: vendorId,
+            year: YEAR,
+            budget_type: budgetType,
+            annual_budget: val,
+          },
+          { onConflict: "vendor_id,year,budget_type" }
         );
 
       if (error) throw error;
+
       setBudget(val);
       setMsg({ kind: "success", text: "התקציב נשמר ✅" });
     } catch (e: any) {
@@ -142,38 +203,36 @@ export default function VendorPage() {
   async function addCharge(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
-    const session = await getSession();
+    const session = await requireSession();
     if (!session) return;
 
-    const d = desc.trim();
     const a = Number(amount);
-    if (!d || !Number.isFinite(a) || a <= 0) {
-      return setMsg({ kind: "error", text: "מלאי תיאור וסכום תקין" });
-    }
+    const d = (chargeDate || "").trim();
+
+    if (!d) return setMsg({ kind: "error", text: "בחרי תאריך" });
+    if (!Number.isFinite(a) || a <= 0) return setMsg({ kind: "error", text: "סכום חייב להיות גדול מ-0" });
 
     setAdding(true);
     try {
-      const today = new Date().toISOString().slice(0, 10);
-
       const { error } = await supabase.from("charges").insert({
         owner_id: session.user.id,
         vendor_id: vendorId,
         year: YEAR,
-        charge_date: today,
-        description: d,
+        budget_type: budgetType,
+        charge_date: d,
         amount: a,
-        category: category.trim() || null,
+        invoice_number: invoiceNumber.trim() || null,
         notes: notes.trim() || null,
       });
 
       if (error) throw error;
 
-      setDesc("");
       setAmount("");
-      setCategory("");
+      setInvoiceNumber("");
       setNotes("");
+
       await loadAll();
-      setMsg({ kind: "success", text: "חיוב נוסף ✅" });
+      setMsg({ kind: "success", text: "הוצאה נוספה ✅" });
     } catch (e: any) {
       setMsg({ kind: "error", text: e?.message ?? "שגיאה לא ידועה" });
     } finally {
@@ -183,7 +242,7 @@ export default function VendorPage() {
 
   async function deleteCharge(id: string) {
     setMsg(null);
-    const ok = confirm("למחוק את החיוב?");
+    const ok = confirm("למחוק את ההוצאה?");
     if (!ok) return;
 
     const { error } = await supabase.from("charges").delete().eq("id", id);
@@ -195,12 +254,31 @@ export default function VendorPage() {
 
   return (
     <div className="fade-in">
-      {/* כותרת פנימית (ה־TopBar כבר מגיע מה־layout) */}
+      {/* כותרת */}
       <div className="mb-4">
         <h2 className="text-xl md:text-2xl font-black">
-          תקציב • <span className="text-indigo-700">{vendorName || "…"}</span>
+          {vendorName || "ספק"} • <span className="text-indigo-700">שנת {YEAR}</span>
         </h2>
-        <p className="text-sm text-slate-600">כרטיסיית ספק • שנה {YEAR}</p>
+        <p className="text-sm text-slate-600">ניהול 3 תקציבים: דירות / מסחר / ציבורי</p>
+      </div>
+
+      {/* טאבים לסוג תקציב */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {BUDGET_TYPES.map((t) => {
+          const active = t.key === budgetType;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setBudgetType(t.key)}
+              className={[
+                "rounded-2xl px-4 py-2 text-sm font-extrabold border transition",
+                active ? "bg-white border-indigo-300 shadow-soft" : "bg-white/60 border-white/60 hover:bg-white",
+              ].join(" ")}
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* סטטיסטיקות */}
@@ -212,9 +290,40 @@ export default function VendorPage() {
 
       {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
 
-      {/* תקציב */}
+      {/* פרטי קשר */}
       <Card className="mt-6">
-        <CardTitle title="תקציב שנתי" subtitle="עדכן את התקציב לשנה הנוכחית." right={<div className="text-2xl">🧠</div>} />
+        <CardTitle title="פרטי קשר לספק" right={<div className="text-2xl">📇</div>} />
+
+        <div className="mt-5 grid gap-3 md:grid-cols-12">
+          <div className="md:col-span-5">
+            <label className="text-xs font-bold text-slate-600">איש קשר</label>
+            <div className="mt-2">
+              <Input value={contactName} onChange={(e) => setContactName(e.target.value)}/>
+            </div>
+          </div>
+
+          <div className="md:col-span-5">
+            <label className="text-xs font-bold text-slate-600">טלפון</label>
+            <div className="mt-2">
+              <Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)}  />
+            </div>
+          </div>
+
+          <div className="md:col-span-2 md:self-end">
+            <Button disabled={savingVendorInfo} onClick={saveVendorInfo} className="w-full" variant="primary">
+              {savingVendorInfo ? "..." : "שמירה"}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* תקציב שנתי לפי סוג */}
+      <Card className="mt-6">
+        <CardTitle
+          title={`תקציב שנתי • ${BUDGET_TYPES.find((x) => x.key === budgetType)?.label ?? ""}`}
+          subtitle="התקציב נשמר לפי סוג התקציב."
+          right={<div className="text-2xl">🧠</div>}
+        />
 
         <div className="mt-5 grid gap-3 sm:grid-cols-12 sm:items-end">
           <div className="sm:col-span-4">
@@ -225,34 +334,41 @@ export default function VendorPage() {
           </div>
 
           <div className="sm:col-span-3">
-            <Button disabled={savingBudget} onClick={saveBudget} className="w-full">
+            <Button disabled={savingBudget} onClick={saveBudget} className="w-full" variant="primary">
               {savingBudget ? "..." : "שמירה"}
             </Button>
           </div>
         </div>
       </Card>
 
-      {/* הוספת חיוב */}
+      {/* הוספת הוצאה */}
       <Card className="mt-6">
-        <CardTitle title="הוספת חיוב" subtitle="הוסף הוצאה לספק ." right={<div className="text-2xl">➕</div>} />
+        <CardTitle
+          title={`הוספת הוצאה • ${BUDGET_TYPES.find((x) => x.key === budgetType)?.label ?? ""}`}
+          subtitle="שדות: תאריך, סכום, מספר חשבונית, הערות."
+          right={<div className="text-2xl">➕</div>}
+        />
 
         <form onSubmit={addCharge} className="mt-5 grid gap-3 md:grid-cols-12">
-          <div className="md:col-span-5">
-            <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="תיאור" />
+          <div className="md:col-span-3">
+            <Input type="date" value={chargeDate} onChange={(e) => setChargeDate(e.target.value)} />
           </div>
-          <div className="md:col-span-2">
+
+          <div className="md:col-span-3">
             <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="סכום" type="number" min={0} />
           </div>
-          <div className="md:col-span-2">
-            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="קטגוריה" />
+
+          <div className="md:col-span-3">
+            <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="מספר חשבונית" />
           </div>
+
           <div className="md:col-span-3">
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="הערות" />
           </div>
 
           <div className="md:col-span-12">
             <Button disabled={adding} className="w-full" variant="primary">
-              {adding ? "..." : "הוסף חיוב"}
+              {adding ? "..." : "הוסף הוצאה"}
             </Button>
           </div>
         </form>
@@ -260,27 +376,30 @@ export default function VendorPage() {
 
       {/* טבלה */}
       <Card className="mt-6">
-        <CardTitle title="חיובים" subtitle={`רשימת חיובים`} right={<div className="text-2xl">📋</div>} />
+        <CardTitle
+          title={`הוצאות • ${BUDGET_TYPES.find((x) => x.key === budgetType)?.label ?? ""}`}
+          subtitle="תאריך • סכום • מספר חשבונית • הערות"
+          right={<div className="text-2xl">📋</div>}
+        />
 
         <div className="mt-5 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-slate-600">
                 <th className="py-3 text-right font-extrabold">תאריך</th>
-                <th className="py-3 text-right font-extrabold">תיאור</th>
                 <th className="py-3 text-right font-extrabold">סכום</th>
-                <th className="py-3 text-right font-extrabold">קטגוריה</th>
+                <th className="py-3 text-right font-extrabold">מס׳ חשבונית</th>
                 <th className="py-3 text-right font-extrabold">הערות</th>
                 <th className="py-3 text-right font-extrabold">פעולות</th>
               </tr>
             </thead>
+
             <tbody>
               {charges.map((c) => (
                 <tr key={c.id} className="border-t border-white/60">
                   <td className="py-3 whitespace-nowrap">{c.charge_date}</td>
-                  <td className="py-3 font-bold">{c.description}</td>
                   <td className="py-3 whitespace-nowrap">{Number(c.amount).toLocaleString()}</td>
-                  <td className="py-3">{c.category ?? "—"}</td>
+                  <td className="py-3">{c.invoice_number ?? "—"}</td>
                   <td className="py-3">{c.notes ?? ""}</td>
                   <td className="py-3">
                     <Button type="button" variant="danger" onClick={() => deleteCharge(c.id)}>
@@ -292,8 +411,8 @@ export default function VendorPage() {
 
               {charges.length === 0 && (
                 <tr className="border-t border-white/60">
-                  <td colSpan={6} className="py-4 text-slate-700">
-                    אין חיובים 
+                  <td colSpan={5} className="py-4 text-slate-700">
+                    אין הוצאות לסוג התקציב הזה.
                   </td>
                 </tr>
               )}
@@ -302,12 +421,7 @@ export default function VendorPage() {
         </div>
       </Card>
 
-      {/* אופציונלי: מצב טעינה */}
-      {loading && (
-        <div className="mt-4 text-sm text-slate-600">
-          טוען נתונים…
-        </div>
-      )}
+      {loading && <div className="mt-4 text-sm text-slate-600">טוען נתונים…</div>}
     </div>
   );
 }
