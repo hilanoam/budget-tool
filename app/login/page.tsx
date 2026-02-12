@@ -111,10 +111,6 @@ export default function LoginPage() {
             </Button>
 
             {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
-
-            <a href="/" className="text-center text-sm font-bold text-indigo-700 hover:underline mt-1">
-              חזרה לדף הבית
-            </a>
           </form>
         </Card>
       </main>

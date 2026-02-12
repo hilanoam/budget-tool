@@ -321,7 +321,7 @@ export default function VendorPage() {
       <Card className="mt-6">
         <CardTitle
           title={`תקציב שנתי • ${BUDGET_TYPES.find((x) => x.key === budgetType)?.label ?? ""}`}
-          subtitle="התקציב נשמר לפי סוג התקציב."
+          subtitle="ערוך תקציב"
           right={<div className="text-2xl">🧠</div>}
         />
 
@@ -345,7 +345,6 @@ export default function VendorPage() {
       <Card className="mt-6">
         <CardTitle
           title={`הוספת הוצאה • ${BUDGET_TYPES.find((x) => x.key === budgetType)?.label ?? ""}`}
-          subtitle="שדות: תאריך, סכום, מספר חשבונית, הערות."
           right={<div className="text-2xl">➕</div>}
         />
 
@@ -378,7 +377,6 @@ export default function VendorPage() {
       <Card className="mt-6">
         <CardTitle
           title={`הוצאות • ${BUDGET_TYPES.find((x) => x.key === budgetType)?.label ?? ""}`}
-          subtitle="תאריך • סכום • מספר חשבונית • הערות"
           right={<div className="text-2xl">📋</div>}
         />
 
