@@ -1,6 +1,12 @@
-import React from "react";
-import AppShell from "../../src/lib/components/AppShell";
+import "./globals.css";
+import { SessionProvider } from "../../src/lib/SessionProvider";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
-  return <AppShell>{children}</AppShell>;
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="he" dir="rtl">
+      <body>
+        <SessionProvider>{children}</SessionProvider>
+      </body>
+    </html>
+  );
 }

@@ -10,7 +10,6 @@ export function Card({
   return (
     <section
       className={[
-        // כמו בדוגמה שלך
         "rounded-[26px] bg-white/60 border border-white/50 backdrop-blur-2xl",
         "p-6 shadow-[0_22px_50px_rgba(31,41,55,.12)]",
         className,
@@ -34,9 +33,7 @@ export function CardTitle({
     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
       <div>
         <h2 className="text-slate-900 text-base sm:text-lg font-semibold">{title}</h2>
-        {subtitle && (
-          <p className="text-sm text-slate-600 mt-1 leading-relaxed">{subtitle}</p>
-        )}
+        {subtitle && <p className="text-sm text-slate-600 mt-1 leading-relaxed">{subtitle}</p>}
       </div>
       {right}
     </div>
@@ -55,13 +52,10 @@ export function Button({
     "px-4 py-2 rounded-2xl border transition text-sm font-semibold shadow-sm disabled:opacity-60 disabled:cursor-not-allowed";
 
   const variants: Record<string, string> = {
-    // הכפתורים בדוגמה: זכוכית בהירה
     glass: "border-white/50 bg-white/70 hover:bg-white/90",
-    // כחול/סגול תוצאה/פעולה
-    primary: "border-white/20 bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_10px_30px_rgba(99,102,241,.35)]",
-    // אדום רך
+    primary:
+      "border-white/20 bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_10px_30px_rgba(99,102,241,.35)]",
     danger: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 shadow-none",
-    // רך לבן/שקוף יותר
     soft: "border-white/40 bg-white/30 hover:bg-white/60",
   };
 
@@ -79,7 +73,6 @@ export function Input({
   return (
     <input
       className={[
-        // כמו בדוגמה שלך
         "w-full rounded-2xl bg-white/60 border border-white/45 backdrop-blur-xl px-4 py-2.5 text-sm",
         "shadow-[0_12px_28px_rgba(31,41,55,.08)]",
         "focus:outline-none focus:ring-2 focus:ring-indigo-300",
@@ -113,5 +106,16 @@ export function Alert({
     >
       {children}
     </div>
+  );
+}
+
+export function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={[
+        "animate-pulse rounded-2xl bg-white/50 border border-white/60",
+        className,
+      ].join(" ")}
+    />
   );
 }
